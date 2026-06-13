@@ -30,7 +30,6 @@ function getLevelColor(level: number): string {
 }
 
 export default function LeaderboardTable() {
-  console.log("LeaderboardTable render");
   const [activeCategory, setActiveCategory] = useState("global-xp");
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,19 +42,13 @@ export default function LeaderboardTable() {
   }, []);
 
   const refresh = useCallback((categoryId: string) => {
-  console.log("REFRESH START", categoryId);
-
   setLoading(true);
   setError(null);
 
   try {
     const data = getLeaderboard(categoryId, 100);
-    console.log("LEADERBOARD DATA LOADED, count:", data.length);
-
     setEntries(data);
   } catch (err) {
-    console.error("LEADERBOARD ERROR", err);
-
     const message =
       err instanceof Error
         ? err.message
@@ -64,7 +57,6 @@ export default function LeaderboardTable() {
     setError(message);
     setEntries([]);
   } finally {
-    console.log("SETTING LOADING FALSE");
     setLoading(false);
   }
 }, []);
