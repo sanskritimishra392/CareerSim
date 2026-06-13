@@ -6,7 +6,6 @@ import {
   CATEGORY_LABELS,
   buildStats,
   getEarnedIds,
-  type Achievement,
 } from "@/lib/achievements";
 import { getStreakData } from "@/lib/streak";
 import { getLevelForXp, getStoredXp } from "@/lib/leveling";
@@ -24,7 +23,7 @@ export default function BadgeGallery() {
 
     // Build achievement stats from localStorage
     const raw = localStorage.getItem("careerSimHistory");
-    let history: any[] = [];
+    let history: { career?: string; scores?: { technicalSkill: number; communication: number; decisionMaking: number }; difficulty?: string }[] = [];
     try { if (raw) history = JSON.parse(raw); } catch {}
 
     const scenariosByCategory: Record<string, number> = {};
@@ -98,7 +97,7 @@ export default function BadgeGallery() {
         </h1>
         <p className="mt-2 text-base text-zinc-400">
           You've earned <span className="font-bold text-white">{earnedCount}</span> of{" "}
-          <span className="font-bold text-white">{ACHIEVEMENTS.length}</span> achievements
+                      <span className="font-bold text-white">{ACHIEVEMENTS.length}</span> achievements
         </p>
       </div>
 

@@ -27,8 +27,6 @@ export const LEADERBOARD_CATEGORIES: LeaderboardCategory[] = [
   { id: "highest-average", label: "Highest Avg Score", icon: "💯", description: "Highest average score", valueLabel: "avg" },
 ];
 
-// ─── Simulated names for leaderboard population ─────────────────
-
 const FIRST_NAMES = [
   "Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Quinn", "Avery",
   "Sage", "Rowan", "Ellis", "Drew", "Reese", "Skyler", "Spencer", "Parker",
@@ -82,28 +80,39 @@ function getRealUserEntry(): LeaderboardEntry | null {
     let simCount = 0;
     let totalScore = 0;
     let scoreCount = 0;
-    const history = historyRaw ? JSON.parse(historyRaw) : [];
+    let weeklyXp = 0;
+    let monthlyXp = 0;
+    const historyRawParsed = historyRaw ? JSON.parse(historyRaw) : [];
+    // Guard: ensure history is an array (handle malformed data)
+    const history = Array.isArray(historyRawParsed) ? historyRawParsed : [];
 
     const now = Date.now();
     const weekAgo = now - 7 * 86400000;
     const monthAgo = now - 30 * 86400000;
-    let weeklyXp = 0;
-    let monthlyXp = 0;
 
     for (const r of history) {
+      if (!r || typeof r !== "object") continue;
       simCount++;
-      if (r.scores) {
-        const avg = (r.scores.technicalSkill + r.scores.communication + r.scores.decisionMaking) / 3;
+      if (r.scores && typeof r.scores === "object") {
+        const tech = typeof r.scores.technicalSkill === "number" ? r.scores.technicalSkill : 0;
+        const comm = typeof r.scores.communication === "number" ? r.scores.communication : 0;
+        const dec = typeof r.scores.decisionMaking === "number" ? r.scores.decisionMaking : 0;
+        const avg = (tech + comm + dec) / 3;
         totalScore += avg;
         scoreCount++;
       }
-      const submitted = new Date(r.submittedAt).getTime();
-      if (submitted >= weekAgo) weeklyXp += 25;
-      if (submitted >= monthAgo) monthlyXp += 25;
+      if (r.submittedAt) {
+        const submitted = new Date(r.submittedAt).getTime();
+        if (!isNaN(submitted)) {
+          if (submitted >= weekAgo) weeklyXp += 25;
+          if (submitted >= monthAgo) monthlyXp += 25;
+        }
+      }
     }
 
     const avgScore = scoreCount > 0 ? Math.round((totalScore / scoreCount) * 10) / 10 : 0;
-    const streak = streakRaw ? (JSON.parse(streakRaw).currentStreak || 0) : 0;
+    const streakData = streakRaw ? JSON.parse(streakRaw) : {};
+    const streak = (streakData && typeof streakData === "object" ? streakData.currentStreak : 0) || 0;
 
     return {
       rank: 0,
@@ -116,7 +125,8 @@ function getRealUserEntry(): LeaderboardEntry | null {
       value: xp,
       valueLabel: "XP",
     };
-  } catch {
+  } catch (err) {
+    console.warn("[Leaderboard] getRealUserEntry error:", err);
     return null;
   }
 }
@@ -127,18 +137,23 @@ function generateSimulatedUsers(count: number, realEntry: LeaderboardEntry | nul
 
   if (realEntry) usedNames.add(realEntry.displayName);
 
-  // Generate high-XP users to make the leaderboard competitive
   for (let i = 0; i < count; i++) {
     const seed = i + 1;
     let first: string, last: string, name: string;
+    let retries = 0;
     do {
-      first = pickFrom(FIRST_NAMES, seed * 3 + i);
-      last = pickFrom(LAST_NAMES, seed * 7 + i * 13);
+      // Vary the seed on each retry so we don't generate the same colliding name forever
+      const retryOffset = retries * 7919;
+      first = pickFrom(FIRST_NAMES, seed * 3 + i + retryOffset);
+      last = pickFrom(LAST_NAMES, seed * 7 + i * 13 + retryOffset);
       name = `${first} ${last}`;
+      retries++;
+      // Safety valve: prevent infinite loop if all 1520 combos are somehow used
+      if (retries > 2000) break;
     } while (usedNames.has(name));
+    if (retries > 2000) continue;
     usedNames.add(name);
 
-    // Generate varied stats — top users have high XP
     const baseXp = Math.max(0, Math.round(5000 - i * 45 + (seededRandom(seed * 11) - 0.5) * 200));
     const xp = Math.max(50, baseXp);
     const level = Math.floor(xp / 100) + 1;
@@ -159,102 +174,63 @@ function generateSimulatedUsers(count: number, realEntry: LeaderboardEntry | nul
   return users;
 }
 
-export function getLeaderboard(categoryId: string, limit: number = 100): LeaderboardEntry[] {
-  const realEntry = getRealUserEntry();
-  let users = generateSimulatedUsers(limit, realEntry);
-
-  // Add real user
-  if (realEntry) {
-    // Merge real user into the simulated set
-    users = users.filter((u) => u.username !== "player");
-    users.push(realEntry);
+function getCategoryValue(entry: LeaderboardEntry, categoryId: string, index: number): { value: number; label: string } {
+  const seed = index * 31 + 7;
+  switch (categoryId) {
+    case "global-xp":
+      return { value: entry.xp, label: "XP" };
+    case "weekly-xp":
+      return { value: Math.round(entry.xp * 0.15 * (0.5 + seededRandom(seed) * 0.5)), label: "XP" };
+    case "monthly-xp":
+      return { value: Math.round(entry.xp * 0.4 * (0.5 + seededRandom(seed) * 0.5)), label: "XP" };
+    case "longest-streak":
+      return { value: Math.min(365, Math.round(entry.xp / 50 + seededRandom(seed) * 30)), label: "days" };
+    case "most-simulations":
+      return { value: Math.round(entry.xp / 25 + seededRandom(seed) * 20), label: "sims" };
+    case "highest-average":
+      return { value: Math.min(10, Math.round((7 + seededRandom(seed) * 3) * 10) / 10), label: "/10" };
+    default:
+      return { value: entry.xp, label: "XP" };
   }
-
-  // Sort based on category
-  users.sort((a, b) => {
-    switch (categoryId) {
-      case "global-xp":
-        return b.xp - a.xp;
-      case "weekly-xp":
-      case "monthly-xp": {
-        // Simulate weekly/monthly XP as a fraction of total
-        const factor = categoryId === "weekly-xp" ? 0.15 : 0.4;
-        const aVal = Math.round(a.xp * factor * (0.5 + Math.random() * 0.5));
-        const bVal = Math.round(b.xp * factor * (0.5 + Math.random() * 0.5));
-        return bVal - aVal;
-      }
-      case "longest-streak": {
-        // Simulate streak based on XP
-        const aStreak = Math.min(365, Math.round(a.xp / 50 + Math.random() * 30));
-        const bStreak = Math.min(365, Math.round(b.xp / 50 + Math.random() * 30));
-        return bStreak - aStreak;
-      }
-      case "most-simulations": {
-        const aSims = Math.round(a.xp / 25 + Math.random() * 20);
-        const bSims = Math.round(b.xp / 25 + Math.random() * 20);
-        return bSims - aSims;
-      }
-      case "highest-average": {
-        const aAvg = Math.min(10, Math.round((7 + Math.random() * 3) * 10) / 10);
-        const bAvg = Math.min(10, Math.round((7 + Math.random() * 3) * 10) / 10);
-        return bAvg - aAvg;
-      }
-      default:
-        return b.xp - a.xp;
-    }
-  });
-
-  // Assign ranks and format values
-  return users.slice(0, limit).map((entry, index) => {
-    let value: number;
-    let valueLabel: string;
-
-    switch (categoryId) {
-      case "global-xp":
-        value = entry.xp;
-        valueLabel = "XP";
-        break;
-      case "weekly-xp":
-        value = Math.round(entry.xp * 0.15 * (0.5 + Math.random() * 0.5));
-        valueLabel = "XP this week";
-        break;
-      case "monthly-xp":
-        value = Math.round(entry.xp * 0.4 * (0.5 + Math.random() * 0.5));
-        valueLabel = "XP this month";
-        break;
-      case "longest-streak":
-        value = Math.min(365, Math.round(entry.xp / 50 + Math.random() * 30));
-        valueLabel = "day streak";
-        break;
-      case "most-simulations":
-        value = Math.round(entry.xp / 25 + Math.random() * 20);
-        valueLabel = "simulations";
-        break;
-      case "highest-average":
-        value = Math.min(10, Math.round((7 + Math.random() * 3) * 10) / 10);
-        valueLabel = "avg score";
-        break;
-      default:
-        value = entry.xp;
-        valueLabel = "XP";
-    }
-
-    return {
-      ...entry,
-      rank: index + 1,
-      value,
-      valueLabel:
-        valueLabel === "avg score" ? `/10` :
-        valueLabel === "XP this week" ? "XP" :
-        valueLabel === "XP this month" ? "XP" :
-        valueLabel === "day streak" ? "days" :
-        valueLabel === "simulations" ? "sims" :
-        valueLabel,
-    };
-  });
 }
 
-// ─── Real user helper for UI highlighting ─────────────────────────
+export function getLeaderboard(categoryId: string, limit: number = 100): LeaderboardEntry[] {
+  try {
+    const realEntry = getRealUserEntry();
+    let users = generateSimulatedUsers(limit, realEntry);
+
+    // Add real user
+    if (realEntry) {
+      users = users.filter((u) => u.username !== "player");
+      users.push(realEntry);
+    }
+
+    // Pre-compute category values deterministically by index
+    const withValues = users.map((u, i) => {
+      const cv = getCategoryValue(u, categoryId, i);
+      return { ...u, categoryValue: cv.value, categoryLabel: cv.label };
+    });
+
+    // Sort by pre-computed value (stable comparator)
+    withValues.sort((a, b) => b.categoryValue - a.categoryValue);
+
+    // Assign ranks and return
+    return withValues.slice(0, limit).map((entry, index) => ({
+      rank: index + 1,
+      username: entry.username,
+      displayName: entry.displayName,
+      level: entry.level,
+      xp: entry.xp,
+      career: entry.career,
+      avatarInitials: entry.avatarInitials,
+      value: entry.categoryValue,
+      valueLabel: entry.categoryLabel,
+    }));
+  } catch (err) {
+    console.error("[Leaderboard] getLeaderboard error:", err);
+    return [];
+  }
+}
 
 export function getRealUsername(): string {
   if (typeof window === "undefined") return "player";
@@ -264,7 +240,9 @@ export function getRealUsername(): string {
       const profile = JSON.parse(raw);
       return profile.username || "player";
     }
-  } catch {}
+  } catch (err) {
+    console.warn("[Leaderboard] getRealUsername error:", err);
+  }
   return "player";
 }
 
@@ -276,6 +254,8 @@ export function getRealDisplayName(): string {
       const profile = JSON.parse(raw);
       return profile.displayName || "Player";
     }
-  } catch {}
+  } catch (err) {
+    console.warn("[Leaderboard] getRealDisplayName error:", err);
+  }
   return "Player";
 }

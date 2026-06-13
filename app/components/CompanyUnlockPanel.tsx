@@ -1,6 +1,6 @@
 "use client";
 
-import { getUnlockedCompanies, getCompanyTiers, type CompanyTier } from "@/lib/companies";
+import { getCompanyTiers } from "@/lib/companies";
 
 interface CompanyUnlockPanelProps {
   careerKey: string;
@@ -11,7 +11,6 @@ export default function CompanyUnlockPanel({
   careerKey,
   level,
 }: CompanyUnlockPanelProps) {
-  const unlockedCompanies = getUnlockedCompanies(careerKey, level);
   const tiers = getCompanyTiers(careerKey);
 
   if (tiers.length === 0) {

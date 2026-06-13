@@ -72,3 +72,46 @@ export type ScenarioSeed = {
   maxLevel: number;
   relevantCompanyIds: string[];
 };
+
+// ─── Evaluation types ──────────────────────────────────────────────
+
+export type EvaluationBreakdown = {
+  relevance: number;
+  clarity: number;
+  reasoning: number;
+};
+
+export type EvaluationResult = {
+  scorePercentage: number;
+  xpEarned: number;
+  passed: boolean;
+  breakdown: EvaluationBreakdown;
+  feedback: string;
+  xpReason: string;
+};
+
+// ─── Seed tracking ─────────────────────────────────────────────────
+
+export const RECENT_SEEDS_KEY = "careerSimRecentSeeds";
+export const MAX_RECENT_SEEDS = 10;
+
+export function getRecentSeedIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENT_SEEDS_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addRecentSeedId(id: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const recent = getRecentSeedIds();
+    const updated = [id, ...recent.filter((s) => s !== id)].slice(0, MAX_RECENT_SEEDS);
+    localStorage.setItem(RECENT_SEEDS_KEY, JSON.stringify(updated));
+  } catch {
+    // localStorage not available
+  }
+}

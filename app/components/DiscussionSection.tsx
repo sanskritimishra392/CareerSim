@@ -7,11 +7,9 @@ import {
   voteComment,
   deleteComment,
   editComment,
-  getCommentCount,
   type Comment,
   type CommentVote,
 } from "@/lib/discussions";
-import { getLevelForXp, getStoredXp } from "@/lib/leveling";
 import { getReputationRank } from "@/lib/ranks";
 
 interface Props {
@@ -94,10 +92,8 @@ function CommentCard({
   const [editBody, setEditBody] = useState(comment.body);
 
   const [rankIcon, setRankIcon] = useState("🥉");
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     if (typeof window !== "undefined") {
       setRankIcon(getReputationRank().icon);
     }
@@ -253,8 +249,6 @@ export default function DiscussionSection({ scenarioId }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "top">("newest");
-  const [mounted, setMounted] = useState(false);
-
   const refresh = useCallback(() => {
     const all = getComments(scenarioId);
     const sorted = [...all].sort((a, b) => {
@@ -265,7 +259,6 @@ export default function DiscussionSection({ scenarioId }: Props) {
   }, [scenarioId, sortBy]);
 
   useEffect(() => {
-    setMounted(true);
     refresh();
   }, [refresh]);
 
@@ -297,14 +290,6 @@ export default function DiscussionSection({ scenarioId }: Props) {
   };
 
   const totalComments = comments.reduce((acc, c) => acc + 1 + c.replies.length, 0);
-
-  if (!mounted) {
-    return (
-      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-6">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-sky-400 border-t-transparent mx-auto" />
-      </div>
-    );
-  }
 
   return (
     <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-6">

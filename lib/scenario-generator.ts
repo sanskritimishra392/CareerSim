@@ -50,6 +50,7 @@ Requirements:
 - Include specific numbers where relevant (response times, error percentages, user counts)
 - Write in second person ("You are the on-call engineer...")`;
 
+
 function buildSeedPrompt(seed: ScenarioSeed, phase: RoundPhase, level: number): string {
   const phaseDescriptions: Record<RoundPhase, string> = {
     initial: seed.initialPhase,

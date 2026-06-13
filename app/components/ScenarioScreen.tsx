@@ -5,9 +5,9 @@ import ScenarioCard from "@/app/components/ScenarioCard";
 import CompanyUnlockPanel from "@/app/components/CompanyUnlockPanel";
 
 import type { ActiveScenario } from "@/lib/scenario-types";
-import { PHASE_LABELS, DIFFICULTY_LABELS } from "@/lib/scenario-types";
+import { PHASE_LABELS } from "@/lib/scenario-types";
 
-import { type EvaluationResult } from "@/lib/evaluator";
+import type { EvaluationResult } from "@/lib/evaluator";
 
 import {
   addXp,
@@ -15,7 +15,7 @@ import {
   getStoredXp,
 } from "@/lib/leveling";
 
-import { slugToCareerKey, getCompanyName } from "@/lib/scenarios";
+import { slugToCareerKey } from "@/lib/scenarios";
 import { getCareerByKey } from "@/lib/careers";
 import { updateStreak } from "@/lib/streak";
 import DiscussionSection from "@/app/components/DiscussionSection";
@@ -216,11 +216,13 @@ export default function ScenarioScreen({
           difficulty: scenario.difficulty,
           careerKey,
           scores: {
-            relevance: result.relevance,
-            clarity: result.clarity,
-            reasoning: result.reasoning,
+            relevance: result.breakdown?.relevance || 5,
+            clarity: result.breakdown?.clarity || 5,
+            reasoning: result.breakdown?.reasoning || 5,
           },
-          xpEarned: scenario.xpReward,
+          scorePercentage: result.scorePercentage,
+          passed: result.passed,
+          xpEarned: result.xpEarned,
         });
       }
 
@@ -441,15 +443,15 @@ export default function ScenarioScreen({
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="rounded-2xl bg-zinc-900/80 p-4 text-center">
                   <p className="text-xs uppercase tracking-wider text-zinc-400">Relevance</p>
-                  <p className="mt-1 text-3xl font-bold text-sky-400">{result.relevance}/10</p>
+                  <p className="mt-1 text-3xl font-bold text-sky-400">{result.breakdown.relevance}/10</p>
                 </div>
                 <div className="rounded-2xl bg-zinc-900/80 p-4 text-center">
                   <p className="text-xs uppercase tracking-wider text-zinc-400">Clarity</p>
-                  <p className="mt-1 text-3xl font-bold text-violet-400">{result.clarity}/10</p>
+                  <p className="mt-1 text-3xl font-bold text-violet-400">{result.breakdown.clarity}/10</p>
                 </div>
                 <div className="rounded-2xl bg-zinc-900/80 p-4 text-center">
                   <p className="text-xs uppercase tracking-wider text-zinc-400">Reasoning</p>
-                  <p className="mt-1 text-3xl font-bold text-emerald-400">{result.reasoning}/10</p>
+                  <p className="mt-1 text-3xl font-bold text-emerald-400">{result.breakdown.reasoning}/10</p>
                 </div>
               </div>
 
@@ -470,7 +472,7 @@ export default function ScenarioScreen({
                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/20 text-xs font-bold text-sky-400">
                           {rh.round}
                         </span>
-                        <span>Round {rh.round}: Avg Score {(rh.result.relevance + rh.result.clarity + rh.result.reasoning) / 3}/10</span>
+                        <span>Round {rh.round}: Avg Score {(rh.result.breakdown.relevance + rh.result.breakdown.clarity + rh.result.breakdown.reasoning) / 3}/10</span>
                       </div>
                     ))}
                   </div>

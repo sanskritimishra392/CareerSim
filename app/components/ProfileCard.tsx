@@ -6,7 +6,6 @@ import {
   getProfile,
   updateProfile,
   computeStats,
-  getRank,
   getEarnedBadges,
   type ProfileData,
   type ProfileStats,

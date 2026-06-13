@@ -7,7 +7,7 @@ import { getStoredXp } from "@/lib/leveling";
 export default function CareerMapPage() {
   const [totalXp] = useState(getStoredXp());
 
-  const handleSelectNode = (node: any) => {
+  const handleSelectNode = (node: { title: string }) => {
     alert(`Selected: ${node.title}`);
   };
 

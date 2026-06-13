@@ -92,37 +92,17 @@ function SkillNodeCard({
   );
 }
 
-function ConnectionLine({ from, to, isActive }: { from: { row: number; col: number }; to: { row: number; col: number }; isActive: boolean }) {
-  // Simple connector rendered as a div with absolute positioning
-  return (
-    <div
-      className={`absolute h-0.5 transition-all duration-500 ${
-        isActive ? "bg-emerald-500/40" : "bg-zinc-800"
-      }`}
-      style={{
-        // These are rough estimates. The actual SVG-based approach would be better but this works.
-        left: "50%",
-        right: "50%",
-        top: "50%",
-        transform: "translateY(-50%)",
-      }}
-    />
-  );
-}
-
 export default function SkillTreeView({ careerKey }: Props) {
   const [mounted, setMounted] = useState(false);
   const [skills, setSkills] = useState<SkillNode[]>([]);
   const [progress, setProgress] = useState<SkillProgress[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillNode | null>(null);
-  const [xp, setXp] = useState(0);
   const [level, setLevel] = useState(1);
 
   useEffect(() => {
     setMounted(true);
     const storedXp = getStoredXp();
     const lvl = getLevelForXp(storedXp).level;
-    setXp(storedXp);
     setLevel(lvl);
 
     const s = getSkills(careerKey);

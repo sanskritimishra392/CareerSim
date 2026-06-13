@@ -251,7 +251,6 @@ export default function CareerProgressionRoadmap() {
 
         <div className="space-y-4">
           {stages.map((stage) => {
-            const stageLevel = level;
             const isCurrentStage = currentStage?.id === stage.id;
             const stageIndex = stages.findIndex((s) => s.id === stage.id);
             const currentIndex = stages.findIndex((s) => s.id === currentStage?.id);

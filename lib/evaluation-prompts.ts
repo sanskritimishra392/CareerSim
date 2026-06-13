@@ -19,20 +19,28 @@ For each response, you must:
    - Clarity: Is the response well-structured, clear, and easy to follow?
    - Reasoning: Does the response demonstrate solid professional thinking and decision-making appropriate for ${role}?
 
-2. Provide constructive feedback that:
+2. Compute an overall scorePercentage (0-100) based on the three dimension scores (max 30/30 = 100%).
+
+3. Determine pass/fail: passed = true if scorePercentage >= 70.
+
+4. Provide constructive feedback that:
    - Highlights what the user did well
    - Points out areas for improvement specific to ${role}
    - Offers actionable next steps
 
-3. Set xpGained to 0 (XP is awarded separately based on scenario difficulty).
+5. Provide a brief xpReason explaining why the score was awarded.
 
 You MUST respond with ONLY valid JSON in this exact format, no markdown or extra text:
 {
-  "relevance": <number 1-10>,
-  "clarity": <number 1-10>,
-  "reasoning": <number 1-10>,
-  "xpGained": 0,
-  "feedback": "<string with constructive feedback>"
+  "scorePercentage": <number 0-100>,
+  "passed": <boolean>,
+  "breakdown": {
+    "relevance": <number 1-10>,
+    "clarity": <number 1-10>,
+    "reasoning": <number 1-10>
+  },
+  "feedback": "<string with constructive feedback>",
+  "xpReason": "<string explaining why this score was given>"
 }`;
 }
 

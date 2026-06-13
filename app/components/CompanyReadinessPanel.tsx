@@ -2,12 +2,9 @@
 
 import { useState, useEffect } from "react";
 import {
-  getCompanyReadiness,
   getReadinessByTier,
   getReadinessColor,
   getReadinessBgColor,
-  getReadinessLabel,
-  type CompanyReadiness,
   type ReadinessCategory,
 } from "@/lib/readiness";
 import { getStoredXp, getLevelForXp } from "@/lib/leveling";
@@ -78,29 +75,26 @@ export default function CompanyReadinessPanel({
       )}
 
       <div className="space-y-5">
-        {tiers.map((tier) => {
-          const tierUnlocked = true; // Show all tiers
-          return (
-            <div key={tier.tierName}>
-              <p className="text-[10px] uppercase tracking-wider text-zinc-600 mb-2 font-medium">
-                {tier.tierName}
-              </p>
-              <div className="space-y-3">
-                {tier.companies.map((company) => {
-                  if (displayed >= maxDisplay) return null;
-                  displayed++;
-                  return (
-                    <ReadinessBar
-                      key={company.companyId}
-                      score={company.score}
-                      label={company.companyName}
-                    />
-                  );
-                })}
-              </div>
+        {tiers.map((tier) => (
+          <div key={tier.tierName}>
+            <p className="text-[10px] uppercase tracking-wider text-zinc-600 mb-2 font-medium">
+              {tier.tierName}
+            </p>
+            <div className="space-y-3">
+              {tier.companies.map((company) => {
+                if (displayed >= maxDisplay) return null;
+                displayed++;
+                return (
+                  <ReadinessBar
+                    key={company.companyId}
+                    score={company.score}
+                    label={company.companyName}
+                  />
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

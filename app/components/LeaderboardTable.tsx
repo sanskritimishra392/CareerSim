@@ -6,7 +6,6 @@ import {
   LEADERBOARD_CATEGORIES,
   getRealDisplayName,
   type LeaderboardEntry,
-  type LeaderboardCategory,
 } from "@/lib/leaderboard";
 import { REPUTATION_RANKS } from "@/lib/ranks";
 import { ReputationRank } from "@/lib/ranks";
@@ -31,10 +30,12 @@ function getLevelColor(level: number): string {
 }
 
 export default function LeaderboardTable() {
+  console.log("LeaderboardTable render");
   const [activeCategory, setActiveCategory] = useState("global-xp");
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const realDisplayName = useMemo(() => {
     if (typeof window === "undefined") return "Player";
@@ -42,13 +43,31 @@ export default function LeaderboardTable() {
   }, []);
 
   const refresh = useCallback((categoryId: string) => {
-    setLoading(true);
-    setTimeout(() => {
-      const data = getLeaderboard(categoryId, 100);
-      setEntries(data);
-      setLoading(false);
-    }, 200);
-  }, []);
+  console.log("REFRESH START", categoryId);
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    const data = getLeaderboard(categoryId, 100);
+    console.log("LEADERBOARD DATA LOADED, count:", data.length);
+
+    setEntries(data);
+  } catch (err) {
+    console.error("LEADERBOARD ERROR", err);
+
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Unknown error generating leaderboard";
+
+    setError(message);
+    setEntries([]);
+  } finally {
+    console.log("SETTING LOADING FALSE");
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     setMounted(true);
@@ -105,8 +124,17 @@ export default function LeaderboardTable() {
         </div>
       )}
 
+      {/* Error state */}
+      {!loading && error && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-900/20 p-8 text-center">
+          <p className="text-3xl mb-3">⚠️</p>
+          <p className="text-sm text-red-300 mb-2">Failed to load leaderboard</p>
+          <p className="text-xs text-red-400/70 font-mono max-w-md mx-auto">{error}</p>
+        </div>
+      )}
+
       {/* Leaderboard table */}
-      {!loading && entries.length > 0 && (
+      {!loading && !error && entries.length > 0 && (
         <div className="rounded-2xl border border-white/10 bg-zinc-900/70 overflow-hidden">
           {/* Table header */}
           <div className="hidden sm:grid sm:grid-cols-[60px_1fr_60px_100px_140px] lg:grid-cols-[60px_1fr_60px_120px_180px] gap-4 px-6 py-4 border-b border-white/5 text-xs uppercase tracking-wider text-zinc-500">
@@ -196,7 +224,7 @@ export default function LeaderboardTable() {
       )}
 
       {/* Empty state */}
-      {!loading && entries.length === 0 && (
+      {!loading && !error && entries.length === 0 && (
         <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-12 text-center">
           <p className="text-lg mb-2">📊</p>
           <p className="text-sm text-zinc-500">No leaderboard data available yet.</p>

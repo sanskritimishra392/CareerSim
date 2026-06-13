@@ -11,6 +11,8 @@ export interface InterviewRecord {
     reasoning: number;
   };
   averageScore: number;
+  scorePercentage?: number;
+  passed?: boolean;
   xpEarned: number;
 }
 

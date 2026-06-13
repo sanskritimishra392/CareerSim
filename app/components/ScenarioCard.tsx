@@ -1,6 +1,6 @@
 "use client";
 
-import type { ActiveScenario, RoundPhase } from "@/lib/scenario-types";
+import type { ActiveScenario } from "@/lib/scenario-types";
 import { DIFFICULTY_LABELS, DIFFICULTY_COLORS, PHASE_LABELS } from "@/lib/scenario-types";
 
 interface ScenarioCardProps {
@@ -38,10 +38,8 @@ export default function ScenarioCard({ scenario }: ScenarioCardProps) {
       {/* Round progress dots */}
       <div className="flex items-center gap-2 mb-6">
         {[1, 2, 3, 4].map((round) => {
-          const phase = scenario.rounds[round - 1]?.phase || "initial";
           const isCompleted = round < scenario.currentRound;
           const isCurrent = round === scenario.currentRound;
-          const isFuture = round > scenario.currentRound;
 
           return (
             <div key={round} className="flex items-center gap-2">

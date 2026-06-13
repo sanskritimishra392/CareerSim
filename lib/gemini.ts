@@ -1,19 +1,22 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+
 const DEFAULT_GENERATION_CONFIG = {
   temperature: 0.7,
   topP: 0.95,
   maxOutputTokens: 1024,
 };
 
-function getGeminiClient() {
+function getGeminiModel() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY environment variable is not set");
   }
 
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenerativeAI(apiKey).getGenerativeModel({
+    model: "gemini-1.5-flash",
+    generationConfig: DEFAULT_GENERATION_CONFIG,
+  });
 }
 
 function buildPrompt(answer: string, scenario?: string) {
@@ -77,23 +80,17 @@ export async function evaluateWithGemini<T>(
   scenario: string | undefined,
   systemPrompt: string
 ): Promise<T> {
-  const client = getGeminiClient();
+  const model = getGeminiModel();
   const prompt = buildPrompt(answer, scenario);
 
-  const response = await client.models.generateContent({
-    model: GEMINI_MODEL,
+  const response = await model.generateContent({
+    systemInstruction: systemPrompt,
     contents: [
       {
         role: "user",
         parts: [{ text: prompt }],
       },
     ],
-    config: {
-      systemInstruction: systemPrompt,
-      temperature: DEFAULT_GENERATION_CONFIG.temperature,
-      topP: DEFAULT_GENERATION_CONFIG.topP,
-      maxOutputTokens: DEFAULT_GENERATION_CONFIG.maxOutputTokens,
-    },
   });
 
   const textContent = extractTextFromResponse(response);

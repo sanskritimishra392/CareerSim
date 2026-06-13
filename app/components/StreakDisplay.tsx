@@ -5,25 +5,20 @@ import {
   getStreakForDisplay,
   getStreakStatus,
   getNextMilestone,
-  getLastMilestoneReached,
   getEarnedStreakBadges,
   getStreakMilestoneProgress,
   STREAK_BADGES,
   type StreakData,
-  type StreakMilestone,
-  type StreakBadge,
 } from "@/lib/streak";
 
 type DisplayVariant = "full" | "compact" | "minimal";
 
 interface StreakDisplayProps {
   variant?: DisplayVariant;
-  onMountUpdate?: boolean;
 }
 
 export default function StreakDisplay({
   variant = "full",
-  onMountUpdate = false,
 }: StreakDisplayProps) {
   const [streak, setStreak] = useState<StreakData>({ currentStreak: 0, longestStreak: 0, lastActiveDate: "" });
   const [mounted, setMounted] = useState(false);
@@ -45,7 +40,6 @@ export default function StreakDisplay({
 
   const status = getStreakStatus(streak.currentStreak);
   const nextMilestone = getNextMilestone(streak.currentStreak);
-  const lastMilestone = getLastMilestoneReached(streak.currentStreak);
   const earnedBadges = getEarnedStreakBadges(streak.longestStreak);
   const milestones = getStreakMilestoneProgress(streak.longestStreak);
 
@@ -172,4 +166,3 @@ export default function StreakDisplay({
     </div>
   );
 }
-

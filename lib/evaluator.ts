@@ -1,21 +1,17 @@
 export interface EvaluationResult {
-  relevance: number;
-  clarity: number;
-  reasoning: number;
-  xpGained: number;
+  scorePercentage: number;
+  xpEarned: number;
+  passed: boolean;
+  breakdown: {
+    relevance: number;
+    clarity: number;
+    reasoning: number;
+  };
   feedback: string;
+  xpReason: string;
 }
 
-const keywordSets = {
-  problem: ["login", "sign in", "authentication", "auth", "credentials", "password", "sign-in"],
-  impact: ["user impact", "customer", "users", "customers", "experience", "UX", "blocked", "unable to"],
-  debugging: ["debug", "debugging", "logs", "trace", "monitor", "monitoring", "inspect", "investigate"],
-  testing: ["test", "testing", "unit test", "integration", "regression", "QA", "automated test"],
-  rootCause: ["root cause", "root-cause", "cause", "analysis", "investigate", "diagnose", "diagnosis"],
-  communication: ["communicate", "communication", "stakeholder", "status", "update", "team", "align", "inform"],
-};
-
-const nonsensePatterns = [/asdf|qwerty|lorem ipsum|kjh|zzzz|xxxxx|yolo|hahah/i, /[a-z]{5,}\d{2,}/i];
+const nonsensePatterns = [/asdf|qwerty|lorem ipsum|kjh|zzzz|xxxxx|yolo|hahah|test test|blah blah/i, /[a-z]{5,}\d{2,}/i];
 
 function normalize(text: string) {
   return text.toLowerCase();
@@ -25,7 +21,16 @@ function countMatches(text: string, patterns: string[]) {
   return patterns.reduce((count, keyword) => (text.includes(keyword) ? count + 1 : count), 0);
 }
 
-function detectGibberish(text: string) {
+const keywordSets = {
+  problem: ["login", "sign in", "authentication", "auth", "credentials", "password", "sign-in", "error", "bug", "issue", "failure", "crash", "outage", "degrad"],
+  impact: ["user impact", "customer", "users", "customers", "experience", "UX", "blocked", "unable to", "revenue", "lost", "downtime", "sla"],
+  debugging: ["debug", "debugging", "logs", "trace", "monitor", "monitoring", "inspect", "investigate", "check", "examine", "review", "analyze"],
+  testing: ["test", "testing", "unit test", "integration", "regression", "QA", "automated test", "validate", "verification"],
+  rootCause: ["root cause", "root-cause", "cause", "analysis", "investigate", "diagnose", "diagnosis", "why", "because", "due to"],
+  communication: ["communicate", "communication", "stakeholder", "status", "update", "team", "align", "inform", "notify", "escalate"],
+};
+
+function detectGibberish(text: string): boolean {
   const normalized = normalize(text);
   if (nonsensePatterns.some((pattern) => pattern.test(normalized))) {
     return true;
@@ -42,16 +47,36 @@ function detectGibberish(text: string) {
   return vowelRatio < 0.3 && words.length > 5;
 }
 
-export function evaluateResponse(answer: string): EvaluationResult {
+function isLowEffortOrNonsense(text: string): boolean {
+  const trimmed = text.trim();
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+
+  // Very short answers are low effort
+  if (wordCount < 10 || trimmed.length < 40) return true;
+
+  // Gibberish detection
+  if (detectGibberish(trimmed)) return true;
+
+  return false;
+}
+
+function computeScorePercentage(answer: string): { score: number; relevance: number; clarity: number; reasoning: number; details: string[] } {
   const trimmed = answer.trim();
   const normalized = normalize(trimmed);
   const words = normalized.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
   const sentenceCount = Math.max(1, (trimmed.match(/[.!?]+/g) || []).length);
 
-  const isShort = wordCount < 12 || trimmed.length < 60;
-  const isGibberish = detectGibberish(trimmed);
+  const details: string[] = [];
 
+  // Check for low-effort / nonsense
+  if (isLowEffortOrNonsense(trimmed)) {
+    details.push("Response is too short, low-effort, or contains gibberish.");
+    return { score: 0, relevance: 1, clarity: 1, reasoning: 1, details };
+  }
+
+  // Score dimensions (each 0-10)
   const problemHits = countMatches(normalized, keywordSets.problem);
   const impactHits = countMatches(normalized, keywordSets.impact);
   const debugHits = countMatches(normalized, keywordSets.debugging);
@@ -59,80 +84,74 @@ export function evaluateResponse(answer: string): EvaluationResult {
   const rootCauseHits = countMatches(normalized, keywordSets.rootCause);
   const communicationHits = countMatches(normalized, keywordSets.communication);
 
-  const insightHits = impactHits + debugHits + testHits + rootCauseHits + communicationHits;
-  const topicHits = Math.min(5, problemHits + insightHits);
+  // Relevance: addressing the core issue
+  const relevance = Math.min(10, Math.max(1, Math.round((problemHits * 1.5 + impactHits) / 2 + 1)));
+  if (impactHits > 0) details.push("Good: highlighted user/customer impact.");
+  else details.push("Tip: mention how the issue affects users or customers.");
 
-  let relevance = Math.min(10, Math.max(1, topicHits * 2));
-  let clarity = Math.min(10, Math.max(1, Math.round(Math.min(10, wordCount / 12 + sentenceCount * 0.5))));
-  let reasoning = Math.min(10, Math.max(1, Math.round((debugHits + rootCauseHits + Math.min(2, problemHits)) * 2 + Math.min(3, wordCount / 50))));
+  // Clarity: well-structured, adequate length
+  let clarity = Math.min(10, Math.max(1, Math.round(Math.min(10, wordCount / 15 + sentenceCount * 0.5))));
+  if (wordCount > 100) clarity = Math.min(10, clarity + 1);
+  if (wordCount > 200) clarity = Math.min(10, clarity + 1);
+  if (communicationHits > 0) clarity = Math.min(10, clarity + 1);
 
-  if (isShort) {
-    relevance = Math.max(1, relevance - 2);
-    clarity = Math.max(1, clarity - 2);
-    reasoning = Math.max(1, reasoning - 2);
-  }
+  // Reasoning: debugging, root cause analysis
+  let reasoning = Math.min(10, Math.max(1, Math.round((debugHits * 1.5 + rootCauseHits * 2) / 2 + 1)));
+  if (debugHits > 0 || rootCauseHits > 0) details.push("Good: demonstrated technical reasoning with debugging or root cause analysis.");
+  else details.push("Tip: include debugging steps or root cause analysis.");
+  if (testHits > 0) reasoning = Math.min(10, reasoning + 1);
+  if (wordCount > 80) reasoning = Math.min(10, reasoning + 1);
 
-  if (isGibberish) {
-    relevance = 1;
-    clarity = 1;
-    reasoning = 1;
-  }
+  if (communicationHits > 0) details.push("Good: showed communication and stakeholder awareness.");
 
-  if (debugHits > 0) {
-    reasoning = Math.min(10, reasoning + 1);
-  }
-  if (testHits > 0 || communicationHits > 0) {
-    clarity = Math.min(10, clarity + 1);
-  }
-  if (impactHits > 0 || rootCauseHits > 0) {
-    relevance = Math.min(10, relevance + 1);
-  }
+  // Calculate weighted score (max 30 = 100%)
+  const total = relevance + clarity + reasoning;
+  const maxScore = 30;
+  const percentage = Math.round((total / maxScore) * 100);
 
-  const xpGained = Math.max(5, Math.min(40, relevance + clarity + reasoning + 4));
+  details.push(`Response length: ${wordCount} words, ${sentenceCount} sentences.`);
 
-  let feedbackLines: string[] = [];
+  return { score: Math.min(100, Math.max(0, percentage)), relevance, clarity, reasoning, details };
+}
 
-  if (isGibberish) {
-    feedbackLines = [
-      "Your answer looks like gibberish or contains too many unrelated characters.",
-      "Try writing a meaningful, complete response that directly addresses the scenario.",
-      "Focus on the user's issue and describe your next steps clearly.",
-    ];
-  } else if (isShort) {
-    feedbackLines = [
-      "Your answer is a bit short and would benefit from more detail.",
-      "Try explaining what you would check, why it matters, and how you would verify the fix.",
-    ];
+function computeXp(scorePercentage: number): { xp: number; reason: string } {
+  if (scorePercentage >= 90) {
+    return { xp: 100, reason: "Outstanding response! You demonstrated expert-level reasoning and clarity." };
+  } else if (scorePercentage >= 80) {
+    return { xp: 75, reason: "Excellent response with strong reasoning and clear communication." };
+  } else if (scorePercentage >= 70) {
+    return { xp: 50, reason: "Good response showing solid understanding of the scenario." };
+  } else if (scorePercentage >= 60) {
+    return { xp: 25, reason: "Adequate response. Try adding more technical detail and structured reasoning." };
+  } else if (scorePercentage >= 1) {
+    return { xp: 0, reason: "Below passing score. Focus on directly addressing the problem with clear technical reasoning." };
   } else {
-    feedbackLines.push(
-      impactHits
-        ? "Nice work mentioning user impact — that shows you understand how this issue affects customers."
-        : "Try calling out the customer or user impact more clearly in your response."
-    );
-    feedbackLines.push(
-      debugHits || testHits
-        ? "Good: you referenced technical practices like debugging and testing that help make your response actionable."
-        : "Consider mentioning debugging steps, testing, or log review to strengthen your evaluation."
-    );
-    feedbackLines.push(
-      rootCauseHits
-        ? "You also focused on root cause analysis, which is key for strong engineering decisions."
-        : "Add more root cause analysis so your response explains why the issue is happening, not just what to do next."
-    );
-    feedbackLines.push(
-      communicationHits
-        ? "Your response includes communication thinking, which helps make technical decisions easier to execute with a team."
-        : "Think about how you would communicate the problem and progress to others while resolving it."
-    );
+    return { xp: 0, reason: "Response was too short, irrelevant, or nonsensical. 0 XP awarded." };
   }
+}
 
-  feedbackLines.push(`XP awarded: ${xpGained}. Keep improving the clarity and technical reasoning of your answers.`);
+export function evaluateResponse(answer: string): EvaluationResult {
+  const { score, relevance, clarity, reasoning, details } = computeScorePercentage(answer);
+  const { xp, reason: xpReason } = computeXp(score);
+
+  const passed = score >= 70;
+
+  // Build feedback text
+  const feedbackParts = [...details];
+  if (score < 60) {
+    feedbackParts.push(`\nYour answer scored ${score}%. To pass (70%), focus on: identifying the core problem, explaining your reasoning step by step, and mentioning user impact.`);
+  } else if (score < 70) {
+    feedbackParts.push(`\nAlmost there! You scored ${score}%. You need 70% to pass. Add more technical depth and structured reasoning.`);
+  } else {
+    feedbackParts.push(`\nPassed with ${score}%! ${xpReason}`);
+  }
 
   return {
-    relevance,
-    clarity,
-    reasoning,
-    xpGained,
-    feedback: feedbackLines.join("\n\n"),
+    scorePercentage: score,
+    xpEarned: xp,
+    passed,
+    breakdown: { relevance, clarity, reasoning },
+    feedback: feedbackParts.join("\n\n"),
+    xpReason,
   };
 }

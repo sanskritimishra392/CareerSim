@@ -131,10 +131,8 @@ export default function CareerMap({ totalXp, onSelectNode }: CareerMapProps) {
         <div className="absolute left-8 top-0 h-full w-0.5 bg-gradient-to-b from-sky-500/50 via-violet-500/30 to-zinc-700/20" />
 
         <div className="relative space-y-10">
-          {CAREER_NODES.map((node, index) => {
+          {CAREER_NODES.map((node) => {
             const status = getNodeStatus(node);
-            const isFirst = index === 0;
-            const isLast = index === CAREER_NODES.length - 1;
 
             return (
               <div

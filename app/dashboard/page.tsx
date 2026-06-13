@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { getLevelForXp, getStoredXp, XP_PER_LEVEL } from "@/lib/leveling";
 import StreakDisplay from "@/app/components/StreakDisplay";
 import CareerProgressionRoadmap from "@/app/components/CareerProgressionRoadmap";
 import { getReputationRank, getReputationProgress } from "@/lib/ranks";
 import CompanyReadinessPanel from "@/app/components/CompanyReadinessPanel";
-import { updateStreak } from "@/lib/streak";
 
 interface SimulationRecord {
   career?: string;
